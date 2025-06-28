@@ -12,7 +12,6 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -85,7 +84,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Serve frontend
+// Serve frontend (static files)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve homepage
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -101,10 +103,8 @@ app.post('/api/voice-capture', async (req, res) => {
 
     console.log('Received voice capture:', transcription.substring(0, 100));
     
-    // Analyze transcription with AI
     const analysis = await analyzeVoiceCapture(transcription);
     
-    // Store voice capture
     const stmt = db.prepare(`
       INSERT INTO voice_captures (audio_transcription, ai_analysis)
       VALUES (?, ?)
@@ -116,7 +116,6 @@ app.post('/api/voice-capture', async (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       
-      // Create task if actionable
       if (analysis.actionable) {
         createTaskFromVoice(this.lastID, analysis, transcription);
       }
@@ -197,7 +196,6 @@ app.put('/api/tasks/:id/status', async (req, res) => {
   let updateQuery = `UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP, last_touched = CURRENT_TIMESTAMP`;
   let params = [status];
   
-  // Handle different status changes
   if (status === 'completed') {
     updateQuery += `, completion_date = CURRENT_TIMESTAMP`;
   } else if (status === 'archived') {
@@ -347,7 +345,6 @@ function createTaskFromVoice(voiceCaptureId, analysis, transcription) {
     if (err) {
       console.error('Task creation error:', err);
     } else {
-      // Link voice capture to task
       db.run(`UPDATE voice_captures SET task_id = ?, processed = TRUE WHERE id = ?`, 
         [this.lastID, voiceCaptureId]);
       console.log(`Created task ${this.lastID} from voice capture`);
@@ -366,7 +363,6 @@ function queryAsync(query, params = []) {
 
 // Automated Jobs (disabled in production for now)
 if (process.env.NODE_ENV !== 'production') {
-  // Daily neglect tracking (runs every morning at 8 AM)
   cron.schedule('0 8 * * *', () => {
     console.log('Running daily neglect check...');
     
@@ -385,10 +381,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// ✅ FIXED: Bind to 0.0.0.0 so Railway can access your app
-app.listen(port, '0.0.0.0', () => {
+// Start server
+app.listen(port, () => {
   console.log(`🚀 Daily AI Check-in Backend running on port ${port}`);
-  console.log(`📊 Dashboard available at: http://0.0.0.0:${port}`);
+  console.log(`📊 Dashboard available at: http://localhost:${port}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
