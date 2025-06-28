@@ -385,10 +385,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// Start server
-app.listen(port, () => {
+// ✅ FIXED: Bind to 0.0.0.0 so Railway can access your app
+app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Daily AI Check-in Backend running on port ${port}`);
-  console.log(`📊 Dashboard available at: http://localhost:${port}`);
+  console.log(`📊 Dashboard available at: http://0.0.0.0:${port}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
